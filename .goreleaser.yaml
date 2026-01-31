@@ -1,0 +1,70 @@
+version: 2
+
+project_name: ghr
+
+builds:
+  - main: ./cmd/ghr
+    binary: ghr
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/lamtuanvu/gh-runner-ctl/internal/cli.Version={{ .Version }}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+brews:
+  - name: ghr
+    repository:
+      owner: lamtuanvu
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/lamtuanvu/gh-runner-ctl
+    description: CLI tool for managing GitHub Actions self-hosted runners as Docker containers
+    license: MIT
+    dependencies:
+      - name: docker
+        type: optional
+    install: |
+      bin.install "ghr"
+    test: |
+      system "#{bin}/ghr", "version"
+
+nfpms:
+  - package_name: ghr
+    vendor: lamtuanvu
+    homepage: https://github.com/lamtuanvu/gh-runner-ctl
+    maintainer: lamtuanvu
+    description: CLI tool for managing GitHub Actions self-hosted runners as Docker containers
+    license: MIT
+    formats:
+      - deb
+    bindir: /usr/bin
+    recommends:
+      - docker-ce
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch

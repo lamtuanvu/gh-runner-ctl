@@ -1,0 +1,21 @@
+scope: org                              # "org" or "repo"
+org: econ-v1                            # required if scope=org
+repo:                                   # required if scope=repo
+  owner: ""
+  name: ""
+token: env:GH_TOKEN                     # "env:VAR" reads from env (recommended)
+runners:
+  count: 10
+  image: myoung34/github-runner:latest
+  labels:
+    - local
+    - dev
+  group: Default
+  name_prefix: ghr
+  ephemeral: true
+  extra_env: {}
+docker:
+  socket: /var/run/docker.sock
+  mount_docker_socket: true
+  restart_policy: unless-stopped
+  work_dir_base: ""                     # empty = use Docker named volumes
