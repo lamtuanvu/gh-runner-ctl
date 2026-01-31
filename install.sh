@@ -6,20 +6,24 @@ BINARY="ghr"
 INSTALL_DIR="/usr/local/bin"
 VERSION=""
 
+INSTALL_COMPLETIONS=""
+
 usage() {
-    echo "Usage: install.sh [-v VERSION] [-d INSTALL_DIR] [-h]"
+    echo "Usage: install.sh [-v VERSION] [-d INSTALL_DIR] [-c] [-h]"
     echo ""
     echo "Options:"
     echo "  -v VERSION      Install a specific version (e.g. v0.1.0). Default: latest"
     echo "  -d INSTALL_DIR  Installation directory. Default: /usr/local/bin"
+    echo "  -c              Install shell completions after binary install"
     echo "  -h              Show this help message"
     exit 0
 }
 
-while getopts "v:d:h" opt; do
+while getopts "v:d:ch" opt; do
     case "$opt" in
         v) VERSION="$OPTARG" ;;
         d) INSTALL_DIR="$OPTARG" ;;
+        c) INSTALL_COMPLETIONS=1 ;;
         h) usage ;;
         *) usage ;;
     esac
@@ -143,4 +147,24 @@ main() {
     echo "Successfully installed ${BINARY} ${VERSION} to ${INSTALL_DIR}/${BINARY}"
 }
 
+install_completions() {
+    echo "Installing shell completions..."
+    if "${INSTALL_DIR}/${BINARY}" completion install; then
+        echo "Shell completions installed successfully."
+    else
+        echo "Warning: could not install shell completions." >&2
+    fi
+}
+
 main
+
+if [ "$INSTALL_COMPLETIONS" = "1" ]; then
+    install_completions
+elif [ -t 0 ]; then
+    printf "Would you like to install shell completions? [y/N] "
+    read -r answer
+    case "$answer" in
+        [yY]|[yY][eE][sS]) install_completions ;;
+        *) echo "Skipping shell completions." ;;
+    esac
+fi

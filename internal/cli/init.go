@@ -15,9 +15,9 @@ func newInitCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Create a .ghr.yaml config file",
+		Short: "Create config file in ~/.ghr/",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			outPath := ".ghr.yaml"
+			outPath := config.DefaultConfigPath()
 			if cfgFile != "" {
 				outPath = cfgFile
 			}
@@ -35,20 +35,30 @@ func newInitCmd() *cobra.Command {
 			newCfg := config.Default()
 
 			// Try to import from .env if requested or if .env exists
+			// Check both ~/.ghr/.env and ./.env
+			envPath := ""
 			if importEnv {
-				if err := importFromEnvFile(newCfg); err != nil {
-					fmt.Printf("Warning: could not import .env: %v\n", err)
+				envPath = findEnvFile()
+				if envPath != "" {
+					if err := importFromEnvFile(newCfg, envPath); err != nil {
+						fmt.Printf("Warning: could not import %s: %v\n", envPath, err)
+					}
+				} else {
+					fmt.Println("Warning: no .env file found")
 				}
-			} else if _, err := os.Stat(".env"); err == nil {
-				fmt.Print("Found .env file. Import settings? [Y/n] ")
-				reader := bufio.NewReader(os.Stdin)
-				answer, _ := reader.ReadString('\n')
-				answer = strings.TrimSpace(strings.ToLower(answer))
-				if answer == "" || answer == "y" {
-					if err := importFromEnvFile(newCfg); err != nil {
-						fmt.Printf("Warning: could not import .env: %v\n", err)
-					} else {
-						fmt.Println("Imported settings from .env")
+			} else {
+				envPath = findEnvFile()
+				if envPath != "" {
+					fmt.Printf("Found %s. Import settings? [Y/n] ", envPath)
+					reader := bufio.NewReader(os.Stdin)
+					answer, _ := reader.ReadString('\n')
+					answer = strings.TrimSpace(strings.ToLower(answer))
+					if answer == "" || answer == "y" {
+						if err := importFromEnvFile(newCfg, envPath); err != nil {
+							fmt.Printf("Warning: could not import %s: %v\n", envPath, err)
+						} else {
+							fmt.Printf("Imported settings from %s\n", envPath)
+						}
 					}
 				}
 			}
@@ -117,8 +127,18 @@ func newInitCmd() *cobra.Command {
 	return cmd
 }
 
-func importFromEnvFile(cfg *config.Config) error {
-	data, err := os.ReadFile(".env")
+// findEnvFile returns the first .env file found, checking ~/.ghr/.env then ./.env.
+func findEnvFile() string {
+	for _, p := range []string{config.DotenvPath(), ".env"} {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+func importFromEnvFile(cfg *config.Config, path string) error {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}

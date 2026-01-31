@@ -39,6 +39,25 @@ type DockerConf struct {
 	WorkDirBase       string `yaml:"work_dir_base,omitempty"`
 }
 
+// Dir returns the ghr config directory (~/.ghr).
+func Dir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ".ghr"
+	}
+	return filepath.Join(home, ".ghr")
+}
+
+// DefaultConfigPath returns the default config file path (~/.ghr/config.yaml).
+func DefaultConfigPath() string {
+	return filepath.Join(Dir(), "config.yaml")
+}
+
+// DotenvPath returns the path to the .env file inside the config dir (~/.ghr/.env).
+func DotenvPath() string {
+	return filepath.Join(Dir(), ".env")
+}
+
 func Default() *Config {
 	return &Config{
 		Scope: "org",
@@ -61,11 +80,9 @@ func Default() *Config {
 
 // searchPaths returns config file paths in priority order.
 func searchPaths() []string {
-	paths := []string{".ghr.yaml"}
-	if home, err := os.UserHomeDir(); err == nil {
-		paths = append(paths, filepath.Join(home, ".config", "ghr", "config.yaml"))
+	return []string{
+		DefaultConfigPath(),
 	}
-	return paths
 }
 
 // Load reads config from the given path, or searches default locations.

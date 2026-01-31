@@ -1,5 +1,5 @@
 scope: org                              # "org" or "repo"
-org: econ-v1                            # required if scope=org
+org: my-org                            # required if scope=org
 repo:                                   # required if scope=repo
   owner: ""
   name: ""

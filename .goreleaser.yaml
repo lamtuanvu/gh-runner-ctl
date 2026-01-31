@@ -42,6 +42,7 @@ brews:
         type: optional
     install: |
       bin.install "ghr"
+      generate_completions_from_executable(bin/"ghr", "completion")
     test: |
       system "#{bin}/ghr", "version"
 

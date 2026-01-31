@@ -19,14 +19,38 @@ var (
 	mgr        *runner.Manager
 )
 
+// skipConfigLoad returns true if the command (or any of its parents) is one
+// that should run without loading config or connecting to Docker.
+func skipConfigLoad(cmd *cobra.Command) bool {
+	skip := map[string]bool{
+		"init":               true,
+		"version":            true,
+		"completion":         true,
+		"help":               true,
+		"__complete":         true,
+		"__completeNoDesc":   true,
+	}
+	for c := cmd; c != nil; c = c.Parent() {
+		if skip[c.Name()] {
+			return true
+		}
+	}
+	return false
+}
+
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "ghr",
 		Short: "GitHub self-hosted runner manager",
 		Long:  "Manage GitHub Actions self-hosted runners via Docker containers.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Load .env file if present (does not overwrite existing env vars)
+			// Check ~/.ghr/.env first, then ./.env
+			config.LoadDotenv(config.DotenvPath())
+			config.LoadDotenv(".env")
+
 			// Commands that don't need config
-			if cmd.Name() == "init" || cmd.Name() == "version" {
+			if skipConfigLoad(cmd) {
 				return nil
 			}
 
@@ -52,11 +76,15 @@ func NewRootCmd() *cobra.Command {
 			}
 		},
 		SilenceUsage: true,
+		CompletionOptions: cobra.CompletionOptions{
+			DisableDefaultCmd: true,
+		},
 	}
 
-	root.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: .ghr.yaml)")
+	root.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ~/.ghr/config.yaml)")
 
 	root.AddCommand(
+		newCompletionCmd(),
 		newInitCmd(),
 		newUpCmd(),
 		newDownCmd(),

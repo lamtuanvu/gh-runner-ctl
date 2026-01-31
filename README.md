@@ -83,13 +83,13 @@ ghr down --all
 
 ## Configuration
 
-`ghr init` creates a `.ghr.yaml` file interactively. If an `.env` file exists (from a previous docker-compose setup), it offers to import settings automatically.
+`ghr init` creates `~/.ghr/config.yaml` interactively. If a `.env` file exists (in `~/.ghr/` or the current directory), it offers to import settings automatically.
 
 ### Config file
 
 ```yaml
 scope: org                              # "org" or "repo"
-org: econ-v1                            # required if scope=org
+org: my-org                            # required if scope=org
 repo:                                   # required if scope=repo
   owner: ""
   name: ""
@@ -111,10 +111,15 @@ docker:
   work_dir_base: ""                     # empty = use Docker named volumes
 ```
 
-### Config search order
+### Config directory
 
-1. `./.ghr.yaml` (current directory)
-2. `~/.config/ghr/config.yaml` (user config)
+All configuration lives in `~/.ghr/`:
+
+```
+~/.ghr/
+  config.yaml   # main config
+  .env          # environment variables (GH_TOKEN, etc.)
+```
 
 Override with `--config path/to/config.yaml` on any command.
 
@@ -240,7 +245,7 @@ Show config summary and runner counts.
 ```
 Config:   .ghr.yaml
 Scope:    org
-Org:      econ-v1
+Org:      my-org
 Image:    myoung34/github-runner:latest
 Labels:   local, dev
 Runners:  10 total (10 running, 0 stopped)
@@ -261,7 +266,7 @@ Print the version string.
 | `dev.ghr.managed` | `true` | Identifies ghr-managed containers |
 | `dev.ghr.runner-num` | `3` | Runner number |
 | `dev.ghr.scope` | `org` | Scope at creation time |
-| `dev.ghr.org` | `econ-v1` | Org name |
+| `dev.ghr.org` | `my-org` | Org name |
 
 This means you can safely use other Docker containers alongside `ghr` — it only touches containers with its own labels.
 
