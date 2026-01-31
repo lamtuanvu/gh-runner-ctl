@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -74,6 +75,121 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 	if loaded.Runners.NamePrefix != "ghr" {
 		t.Errorf("loaded name_prefix = %q, want %q", loaded.Runners.NamePrefix, "ghr")
+	}
+}
+
+func TestParseDotenv(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	content := `# This is a comment
+GH_TOKEN=abc123
+GH_ORG=myorg
+
+RUNNER_LABELS=linux,x64 # inline comment
+EMPTY_LINE_ABOVE=yes
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	vars, err := ParseDotenv(path)
+	if err != nil {
+		t.Fatalf("ParseDotenv() error = %v", err)
+	}
+
+	tests := map[string]string{
+		"GH_TOKEN":         "abc123",
+		"GH_ORG":           "myorg",
+		"RUNNER_LABELS":    "linux,x64",
+		"EMPTY_LINE_ABOVE": "yes",
+	}
+	for k, want := range tests {
+		if got := vars[k]; got != want {
+			t.Errorf("ParseDotenv()[%q] = %q, want %q", k, got, want)
+		}
+	}
+	if len(vars) != len(tests) {
+		t.Errorf("ParseDotenv() returned %d vars, want %d", len(vars), len(tests))
+	}
+}
+
+func TestParseDotenv_FileNotFound(t *testing.T) {
+	_, err := ParseDotenv("/nonexistent/.env")
+	if err == nil {
+		t.Error("ParseDotenv() expected error for missing file")
+	}
+}
+
+func TestSaveDotenv_NewFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sub", ".env")
+
+	vars := map[string]string{
+		"GH_TOKEN": "secret",
+		"GH_ORG":   "myorg",
+	}
+	if err := SaveDotenv(path, vars); err != nil {
+		t.Fatalf("SaveDotenv() error = %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("file permissions = %o, want 0600", perm)
+	}
+
+	got, err := ParseDotenv(path)
+	if err != nil {
+		t.Fatalf("ParseDotenv() error = %v", err)
+	}
+	for k, want := range vars {
+		if got[k] != want {
+			t.Errorf("key %q = %q, want %q", k, got[k], want)
+		}
+	}
+}
+
+func TestSaveDotenv_MergeExisting(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	existing := `# Header comment
+OLD_KEY=old_value
+SHARED_KEY=original
+`
+	if err := os.WriteFile(path, []byte(existing), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	vars := map[string]string{
+		"SHARED_KEY": "updated",
+		"NEW_KEY":    "new_value",
+	}
+	if err := SaveDotenv(path, vars); err != nil {
+		t.Fatalf("SaveDotenv() error = %v", err)
+	}
+
+	got, err := ParseDotenv(path)
+	if err != nil {
+		t.Fatalf("ParseDotenv() error = %v", err)
+	}
+	if got["OLD_KEY"] != "old_value" {
+		t.Errorf("OLD_KEY = %q, want %q", got["OLD_KEY"], "old_value")
+	}
+	if got["SHARED_KEY"] != "updated" {
+		t.Errorf("SHARED_KEY = %q, want %q", got["SHARED_KEY"], "updated")
+	}
+	if got["NEW_KEY"] != "new_value" {
+		t.Errorf("NEW_KEY = %q, want %q", got["NEW_KEY"], "new_value")
+	}
+
+	// Verify comment is preserved in raw content
+	data, _ := os.ReadFile(path)
+	if !strings.Contains(string(data), "# Header comment") {
+		t.Error("comment was not preserved in merged file")
 	}
 }
 
