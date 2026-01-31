@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -138,31 +139,9 @@ func findEnvFile() string {
 }
 
 func importFromEnvFile(cfg *config.Config, path string) error {
-	data, err := os.ReadFile(path)
+	envMap, err := config.ParseDotenv(path)
 	if err != nil {
 		return err
-	}
-
-	envMap := make(map[string]string)
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		// Strip inline comments
-		if idx := strings.Index(line, "#"); idx > 0 {
-			// Only treat as comment if preceded by whitespace
-			before := line[:idx]
-			if strings.HasSuffix(strings.TrimRight(before, " \t"), "=") {
-				// value is empty before comment, skip stripping
-			} else {
-				line = strings.TrimSpace(before)
-			}
-		}
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			envMap[parts[0]] = parts[1]
-		}
 	}
 
 	if org, ok := envMap["GH_ORG"]; ok {
@@ -177,6 +156,17 @@ func importFromEnvFile(cfg *config.Config, path string) error {
 	}
 	// Keep token as env reference
 	cfg.Token = "env:GH_TOKEN"
+
+	// Copy all env vars to ~/.ghr/.env (skip if source is already that file)
+	dest := config.DotenvPath()
+	srcAbs, _ := filepath.Abs(path)
+	destAbs, _ := filepath.Abs(dest)
+	if srcAbs != destAbs {
+		if err := config.SaveDotenv(dest, envMap); err != nil {
+			return fmt.Errorf("copying env vars to %s: %w", dest, err)
+		}
+		fmt.Printf("Environment variables copied to %s\n", dest)
+	}
 
 	return nil
 }

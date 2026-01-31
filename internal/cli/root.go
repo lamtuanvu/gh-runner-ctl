@@ -45,9 +45,7 @@ func NewRootCmd() *cobra.Command {
 		Long:  "Manage GitHub Actions self-hosted runners via Docker containers.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Load .env file if present (does not overwrite existing env vars)
-			// Check ~/.ghr/.env first, then ./.env
 			config.LoadDotenv(config.DotenvPath())
-			config.LoadDotenv(".env")
 
 			// Commands that don't need config
 			if skipConfigLoad(cmd) {
